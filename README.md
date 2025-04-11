@@ -1,1 +1,1 @@
-# lyrics-dynamic-Island
+# lyrics-dynamic-island
