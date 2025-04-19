@@ -1,2 +1,8 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import { contextBridge, ipcRenderer } from "electron";
+
+import type { IElectronAPI } from "./renderer/interface";
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  sendWindowControl: (action) => ipcRenderer.send(action),
+  onItunesMusicUpdate: (callback) => ipcRenderer.on("itunes-music-update", (_event, data) => callback(data)),
+} as IElectronAPI);

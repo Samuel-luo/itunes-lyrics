@@ -1,6 +1,10 @@
 import { app, BrowserWindow } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
+import makeWindowControllable from "./main/window-controls";
+import listenItunes from "./main/itunes-listener";
+
+app.commandLine.appendSwitch("enable-experimental-web-platform-features");
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -11,15 +15,22 @@ const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
-    height: 600,
+    height: 500,
+    frame: false,
+    transparent: true,
     webPreferences: {
+      experimentalFeatures: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  mainWindow.setAlwaysOnTop(true, "status-bar");
+  mainWindow.removeMenu();
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    makeWindowControllable(mainWindow);
+    listenItunes(mainWindow);
+  });
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
