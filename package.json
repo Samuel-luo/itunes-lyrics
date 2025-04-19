@@ -54,9 +54,5 @@
     "electron-squirrel-startup": "^1.0.1",
     "itunes-bridge": "^0.6.7",
     "vue": "^3.5.13"
-  },
-  "asarUnpack": [
-    "node_modules/itunes-bridge/wscript",
-    "node_modules/itunes-bridge/jxa"
-  ]
+  }
 }
