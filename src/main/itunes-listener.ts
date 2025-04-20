@@ -65,9 +65,11 @@ export class MusicController {
   }
 }
 
+const iTunesEmitter = iTunes.emitter;
+
 const listenItunes = (mainWindow: BrowserWindow) => {
   const currentTrack = iTunes.getCurrentTrack();
-  const iTunesEmitter = iTunes.emitter;
+
   const musicController = new MusicController(mainWindow);
 
   const playingHandler = (type: any, currentTrack: any) => {

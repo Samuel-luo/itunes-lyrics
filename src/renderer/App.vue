@@ -7,23 +7,35 @@
   <div class="music-info">
     <div class="music-name">{{ currentMusic?.name }}</div>
     <div class="music-artist">{{ currentMusic?.artist }}</div>
+    <div class="music-album">{{ currentMusic?.album }}</div>
   </div>
 </template>
 
-<script setup>
-import { onBeforeMount, onMounted, ref } from "vue";
+<script lang="ts" setup>
+import { onBeforeMount, ref, watch } from "vue";
 
-const currentMusic = ref(null);
+import type { CurrentMusic } from "@/renderer/interface";
+
+const currentMusic = ref<CurrentMusic | null>(null);
 const isPlaying = ref(false);
 
+watch(
+  [() => currentMusic.value?.name, () => currentMusic.value?.artist, () => currentMusic.value?.album],
+  async (val) => {
+    console.log(val);
+    if (currentMusic.value) {
+      console.log(await window.electronAPI.fetchLyrics({ ...currentMusic.value }));
+    }
+  }
+);
+
 // 处理窗口控制按钮的点击事件
-const handleWindowControls = (action) => {
+const handleWindowControls = (action: "close" | "minimize" | "maximize") => {
   window.electronAPI.sendWindowControl(`window-${action}`);
 };
 
 onBeforeMount(() => {
   window.electronAPI.onItunesMusicUpdate((data) => {
-    console.log(data);
     currentMusic.value = data.currentMusic;
     isPlaying.value = data.isPlaying;
   });
