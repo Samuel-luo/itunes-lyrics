@@ -1,18 +1,15 @@
 import { ipcMain } from "electron";
-const lyricsSearcher = require("lyrics-searcher");
+const { searchLyrics } = require("@spicysparks/lrc-api");
 
 import type { CurrentMusic } from "./itunes-listener";
 
 const fetchLyricsHandler = () => {
   ipcMain.handle("fetch-lyrics", async (event, music: CurrentMusic) => {
     try {
-      console.log("fetch", music.artist, music.name);
-      const res = (await lyricsSearcher(music.artist, music.name)) || null;
-      console.log("res", res);
-      return res;
+      return await searchLyrics(music.name, music.artist);
     } catch (err) {
       console.error(err);
-      return null;
+      return { success: false };
     }
   });
 };

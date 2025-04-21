@@ -24,7 +24,8 @@ watch(
   async (val) => {
     console.log(val);
     if (currentMusic.value) {
-      console.log(await window.electronAPI.fetchLyrics({ ...currentMusic.value }));
+      const lyrics = await window.electronAPI.fetchLyrics({ ...currentMusic.value });
+      console.log(lyrics);
     }
   }
 );
