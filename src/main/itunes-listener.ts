@@ -7,6 +7,7 @@ export interface CurrentMusic {
   artist: string; // 歌手
   album: string; // 专辑
   duration: number; // 歌曲时长
+  elapsedTime: number; // 已播放时间
   remainingTime: number; // 剩余时间
 }
 
@@ -25,6 +26,7 @@ export class MusicController {
           artist: track.artist,
           album: track.album,
           duration: track.duration,
+          elapsedTime: track.elapsedTime,
           remainingTime: track.remainingTime,
         }
       : null;

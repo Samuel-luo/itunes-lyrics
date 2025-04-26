@@ -1,8 +1,8 @@
 {
-  "name": "lyrics-dynamic-island",
-  "productName": "lyrics-dynamic-island",
+  "name": "lyrics",
+  "productName": "lyrics",
   "version": "1.0.0",
-  "description": "lyrics dynamic island for mac",
+  "description": "An Itunes lyrics player",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
