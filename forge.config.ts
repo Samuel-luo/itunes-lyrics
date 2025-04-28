@@ -3,18 +3,60 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
+import { MakerDMG } from "@electron-forge/maker-dmg";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
 const config: ForgeConfig = {
   packagerConfig: {
+    icon: "./assets/icon.ico",
     asar: {
       unpack: "**/node_modules/itunes-bridge/(wscript|jxa)",
     },
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ["darwin"]), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    // new MakerSquirrel({}),
+    // new MakerZIP({}, ["darwin"]),
+    // new MakerRpm({}),
+    // new MakerDeb({}),
+    new MakerDMG(
+      {
+        name: "lyrics",
+        format: "ULFO",
+        background: "./assets/background.png",
+        icon: "./assets/icon.icns",
+        contents: [
+          {
+            x: 420,
+            y: 150,
+            type: "link",
+            path: "/Applications",
+          },
+          {
+            x: 180,
+            y: 150,
+            type: "file",
+            path: "./out/lyrics-darwin-arm64/lyrics.app",
+          },
+        ],
+        additionalDMGOptions: {
+          window: {
+            size: {
+              width: 600,
+              height: 400,
+            },
+            position: {
+              x: 480,
+              y: 300,
+            },
+          },
+        },
+      },
+      ["darwin"]
+    ),
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
