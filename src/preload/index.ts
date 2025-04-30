@@ -1,8 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-import type { CurrentMusic } from './index.d'
-
 // Custom APIs for renderer
 const customAPI = {
   sendWindowControl: (action) => ipcRenderer.send(action),

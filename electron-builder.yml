@@ -31,6 +31,22 @@ mac:
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
+  background: build/background.png
+  icon: build/icon.icns
+  iconSize: 1024
+  format: ULFO
+  contents:
+    - x: 180
+      y: 150
+    - x: 420
+      y: 150
+      type: link
+      path: /Applications
+  window:
+    x: 480
+    y: 300
+    width: 600
+    height: 400
 linux:
   target:
     - AppImage

@@ -33,11 +33,9 @@ import { computed, onBeforeMount, ref, useTemplateRef, watch } from 'vue'
 import parseLyrics from '@renderer/utils/lyrics-parser'
 import useMusicTime from '@renderer/utils/music-time'
 
-import type { CurrentMusic } from '../../preload/index.d'
-
 const lyricsRef = useTemplateRef<HTMLDivElement>('lyricsRef')
 const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>('lyricsLineRefs')
-const currentMusic = ref<CurrentMusic | null>(null)
+const currentMusic = ref<globalThis.CurrentMusic | null>(null)
 const isPlaying = ref(false)
 const lyrics = ref<{ time: number; content: string }[]>([])
 const { currentTime, start, stop, resume, clear } = useMusicTime(500)

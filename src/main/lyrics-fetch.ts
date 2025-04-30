@@ -1,8 +1,6 @@
 import { ipcMain } from 'electron'
 import { searchLyrics } from '@spicysparks/lrc-api'
 
-import type { CurrentMusic } from '../preload/index.d'
-
 const fetchLyricsHandler = (): void => {
   ipcMain.handle('fetch-lyrics', async (_event, music: CurrentMusic) => {
     try {

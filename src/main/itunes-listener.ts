@@ -2,7 +2,6 @@ import iTunes from 'itunes-bridge'
 import chalk from 'chalk'
 
 import type { BrowserWindow } from 'electron'
-import type { CurrentMusic } from '../preload/index.d'
 
 export class MusicController {
   public currentMusic: CurrentMusic | null = null
