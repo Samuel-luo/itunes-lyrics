@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-const { searchLyrics } = require("@spicysparks/lrc-api");
+import { searchLyrics } from "@spicysparks/lrc-api";
 
 import type { CurrentMusic } from "./itunes-listener";
 

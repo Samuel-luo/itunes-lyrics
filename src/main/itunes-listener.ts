@@ -1,4 +1,4 @@
-const iTunes = require("itunes-bridge");
+import iTunes from "itunes-bridge";
 import chalk from "chalk";
 
 import type { BrowserWindow } from "electron";

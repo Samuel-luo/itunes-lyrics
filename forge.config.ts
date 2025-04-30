@@ -10,10 +10,8 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
 const config: ForgeConfig = {
   packagerConfig: {
-    icon: "./assets/icon.ico",
-    asar: {
-      unpack: "**/node_modules/itunes-bridge/(wscript|jxa)",
-    },
+    icon: "./assets/icon.icns",
+    asar: false,
   },
   rebuildConfig: {},
   makers: [
