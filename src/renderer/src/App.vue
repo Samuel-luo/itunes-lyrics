@@ -11,47 +11,54 @@
     &nbsp;-&nbsp;
     <div class="music-album">{{ currentMusic?.album }}</div>
   </div>
-  <div class="lyrics" ref="lyricsRef">
+  <div ref="lyricsRef" class="lyrics">
     <div class="blank-top"></div>
     <div
-      class="lyrics-line"
       v-for="(line, index) in lyrics"
+      :key="index"
       ref="lyricsLineRefs"
+      class="lyrics-line"
       :class="{ current: index === currentLine }"
-      >{{ line.content }}</div
     >
+      <span v-if="line.content === '%end%'"></span>
+      <span v-else-if="line.content">{{ line.content }}</span>
+      <span v-else class="interlude">● ● ●</span>
+    </div>
     <div class="blank-bottom"></div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref, useTemplateRef, watch } from "vue";
-import parseLyrics from "./lyrics-parser";
-import useMusicTime from "./music-time";
+import { computed, onBeforeMount, ref, useTemplateRef, watch } from 'vue'
+import parseLyrics from '@renderer/utils/lyrics-parser'
+import useMusicTime from '@renderer/utils/music-time'
 
-import type { CurrentMusic } from "@/renderer/interface";
+import type { CurrentMusic } from '../../preload/index.d'
 
-const lyricsRef = useTemplateRef<HTMLDivElement>("lyricsRef");
-const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>("lyricsLineRefs");
-const currentMusic = ref<CurrentMusic | null>(null);
-const isPlaying = ref(false);
-const lyrics = ref<{ time: number; content: string }[]>([]);
-const { currentTime, start, stop, resume, clear } = useMusicTime(500);
+const lyricsRef = useTemplateRef<HTMLDivElement>('lyricsRef')
+const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>('lyricsLineRefs')
+const currentMusic = ref<CurrentMusic | null>(null)
+const isPlaying = ref(false)
+const lyrics = ref<{ time: number; content: string }[]>([])
+const { currentTime, start, stop, resume, clear } = useMusicTime(500)
 const lyricsLineTime = computed(() => {
-  return lyrics.value.map((line) => line.time);
-});
+  return lyrics.value.map((line) => line.time)
+})
 const currentLine = computed(() => {
-  const currentLine = Math.max((lyricsLineTime.value.findIndex((time) => time > currentTime.value) || 0) - 1, 0);
+  const currentLine = Math.max(
+    (lyricsLineTime.value.findIndex((time) => time > currentTime.value) || 0) - 1,
+    0
+  )
 
-  const pageHeight = document.documentElement.clientHeight;
+  const pageHeight = document.documentElement.clientHeight
 
   lyricsRef.value?.scrollTo({
     top: (lyricsLineRefs.value?.[currentLine]?.offsetTop || 0) - (pageHeight * 5) / 100,
-    behavior: "smooth",
-  });
+    behavior: 'smooth'
+  })
 
-  return currentLine;
-});
+  return currentLine
+})
 
 watch(
   [
@@ -59,59 +66,59 @@ watch(
     () => currentMusic.value?.artist,
     () => currentMusic.value?.album,
     () => currentMusic.value?.elapsedTime,
-    () => isPlaying.value,
+    () => isPlaying.value
   ],
   async (
     [name, artist, album, elapsedTime, isPlaying],
     [oldName, oldArtist, oldAlbum, oldElapsedTime, oldIsPlaying]
   ) => {
     if (name !== oldName || artist !== oldArtist || album !== oldAlbum) {
-      console.log("song changed");
+      console.log('song changed')
 
-      clear();
-      start(elapsedTime! * 1000);
+      clear()
+      start(elapsedTime! * 1000)
 
-      lyrics.value = [{ time: 0, content: "正在加载歌词..." }];
-      const res = await window.electronAPI.fetchLyrics({ ...currentMusic.value });
+      lyrics.value = [{ time: 0, content: '正在加载歌词...' }]
+      const res = await window.electronAPI.fetchLyrics({ ...currentMusic.value! })
       if (!res.success) {
-        lyrics.value = [{ time: 0, content: "抱歉，没有找到歌词" }];
-        return;
+        lyrics.value = [{ time: 0, content: '抱歉，没有找到歌词' }]
+        return
       }
-      lyrics.value = parseLyrics(res.lyrics);
-      console.log(lyrics.value);
+      lyrics.value = parseLyrics(res.lyrics)
+      console.log(lyrics.value)
     } else if (elapsedTime !== oldElapsedTime) {
-      console.log("duration changed");
-      clear();
-      start(elapsedTime! * 1000);
+      console.log('duration changed')
+      clear()
+      start(elapsedTime! * 1000)
     } else if (isPlaying !== oldIsPlaying) {
-      console.log("playing changed");
-      isPlaying ? resume() : stop();
+      console.log('playing changed')
+      isPlaying ? resume() : stop()
     }
   },
   { immediate: true }
-);
+)
 watch(
   [currentTime, () => currentMusic.value?.duration],
   ([currentTime, duration]) => {
     if (currentTime >= (duration || 0) * 1000) {
-      clear();
-      start(0);
+      clear()
+      start(0)
     }
   },
   { immediate: true }
-);
+)
 
 // 处理窗口控制按钮的点击事件
-const handleWindowControls = (action: "close" | "minimize" | "maximize") => {
-  window.electronAPI.sendWindowControl(`window-${action}`);
-};
+const handleWindowControls = (action: 'close' | 'minimize' | 'maximize'): void => {
+  window.electronAPI.sendWindowControl(`window-${action}`)
+}
 
 onBeforeMount(() => {
   window.electronAPI.onItunesMusicUpdate((data) => {
-    currentMusic.value = data.currentMusic;
-    isPlaying.value = data.isPlaying;
-  });
-});
+    currentMusic.value = data.currentMusic
+    isPlaying.value = data.isPlaying
+  })
+})
 </script>
 
 <style lang="less" scoped>
@@ -184,7 +191,7 @@ onBeforeMount(() => {
     position: fixed;
     top: 30px;
     left: 0;
-    content: "";
+    content: '';
     width: 100%;
     height: 5vh;
     background: linear-gradient(to bottom, #ffffff, transparent);
@@ -194,7 +201,7 @@ onBeforeMount(() => {
     position: fixed;
     bottom: 0;
     left: 0;
-    content: "";
+    content: '';
     width: 100%;
     height: 5vh;
     background: linear-gradient(to top, #ffffff, transparent);
@@ -226,6 +233,27 @@ onBeforeMount(() => {
 
     &.current {
       color: #000;
+
+      .interlude {
+        animation: breathe 3s linear infinite;
+      }
+
+      @keyframes breathe {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+    }
+
+    .interlude {
+      display: inline-block;
+      font-size: 13px;
     }
   }
 }
