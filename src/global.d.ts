@@ -6,3 +6,12 @@ interface CurrentMusic {
   elapsedTime: number // 已播放时间
   remainingTime: number // 剩余时间
 }
+
+type Lyrics =
+  | {
+      success: true
+      lyrics: string
+    }
+  | {
+      success: false
+    }

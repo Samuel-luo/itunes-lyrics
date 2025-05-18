@@ -17,6 +17,9 @@ importers:
       '@spicysparks/lrc-api':
         specifier: ^1.8.0
         version: 1.8.0
+      axios:
+        specifier: ^1.9.0
+        version: 1.9.0
       chalk:
         specifier: ^4.1.2
         version: 4.1.2

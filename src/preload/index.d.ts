@@ -5,9 +5,7 @@ export interface IElectronAPI extends ElectronAPI {
   onItunesMusicUpdate: (
     callback: (data: { currentMusic: CurrentMusic | null; isPlaying: boolean }) => void
   ) => void
-  fetchLyrics: (
-    music: CurrentMusic
-  ) => Promise<{ success: true; lyrics: string } | { success: false }>
+  fetchLyrics: (music: CurrentMusic) => Promise<Lyrics>
 }
 
 declare global {

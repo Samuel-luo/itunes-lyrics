@@ -6,13 +6,16 @@ const parseTime = (time: string = ''): number => {
 
 const parseLyrics = (lyrics: string): { time: number; content: string }[] => {
   const lines = lyrics.trim().split('\n')
-  const parsedLines = lines.map((line) => {
-    const [time, content = ''] = line.trim().split(/(?<=\[\d\d:\d\d.\d\d\])/g)
-    return {
-      time: parseTime(time),
-      content: content.trim()
-    }
-  })
+  const parsedLines = lines
+    .map((line) => {
+      const [time, content = ''] = line.trim().split(/(?<=\[\d\d:\d\d.\d\d\d?\])/g)
+
+      return {
+        time: parseTime(time),
+        content: content.trim()
+      }
+    })
+    .filter((line) => !(isNaN(line.time) && !line.content))
 
   parsedLines.push({ time: Infinity, content: '%end%' })
 

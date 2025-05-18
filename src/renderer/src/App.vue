@@ -120,6 +120,8 @@ onBeforeMount(() => {
 </script>
 
 <style lang="less" scoped>
+@import '@renderer/assets/variables.less';
+
 .window-controls {
   position: fixed;
   top: 8px;
@@ -192,7 +194,7 @@ onBeforeMount(() => {
     content: '';
     width: 100%;
     height: 5vh;
-    background: linear-gradient(to bottom, #ffffff, transparent);
+    background: linear-gradient(to bottom, @background-color, transparent);
   }
 
   &::after {
@@ -202,7 +204,7 @@ onBeforeMount(() => {
     content: '';
     width: 100%;
     height: 5vh;
-    background: linear-gradient(to top, #ffffff, transparent);
+    background: linear-gradient(to top, @background-color, transparent);
   }
 
   &::-webkit-scrollbar {
