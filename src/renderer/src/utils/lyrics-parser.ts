@@ -17,8 +17,6 @@ const parseLyrics = (lyrics: string): { time: number; content: string }[] => {
     })
     .filter((line) => !(isNaN(line.time) && !line.content))
 
-  parsedLines.push({ time: Infinity, content: '%end%' })
-
   return parsedLines
 }
 

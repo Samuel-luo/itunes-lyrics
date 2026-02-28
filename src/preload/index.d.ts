@@ -5,6 +5,7 @@ export interface IElectronAPI extends ElectronAPI {
   onItunesMusicUpdate: (
     callback: (data: { currentMusic: CurrentMusic | null; isPlaying: boolean }) => void
   ) => void
+  onItunesTimeCalibrate: (callback: (data: { elapsedTime: number }) => void) => void
   fetchLyrics: (music: CurrentMusic) => Promise<Lyrics>
 }
 

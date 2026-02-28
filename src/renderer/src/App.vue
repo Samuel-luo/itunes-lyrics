@@ -12,7 +12,6 @@
     <div class="music-album">{{ currentMusic?.album }}</div>
   </div>
   <div ref="lyricsRef" class="lyrics">
-    <div class="blank-top"></div>
     <div
       v-for="(line, index) in lyrics"
       :key="index"
@@ -20,8 +19,7 @@
       class="lyrics-line"
       :class="{ current: index === currentLine }"
     >
-      <span v-if="line.content === '%end%'"></span>
-      <span v-else-if="line.content">{{ line.content }}</span>
+      <span v-if="line.content">{{ line.content }}</span>
       <span v-else class="interlude">● ● ●</span>
     </div>
     <div class="blank-bottom"></div>
@@ -29,7 +27,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeMount, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import parseLyrics from '@renderer/utils/lyrics-parser'
 import useMusicTime from '@renderer/utils/music-time'
 
@@ -38,24 +36,26 @@ const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>('lyricsLineRefs')
 const currentMusic = ref<globalThis.CurrentMusic | null>(null)
 const isPlaying = ref(false)
 const lyrics = ref<{ time: number; content: string }[]>([])
-const { currentTime, start, stop, resume, clear } = useMusicTime(500)
+const { currentTime, start, stop, resume, clear, calibrate } = useMusicTime(500)
 const lyricsLineTime = computed(() => {
   return lyrics.value.map((line) => line.time)
 })
-const currentLine = computed(() => {
-  const currentLine = Math.max(
-    (lyricsLineTime.value.findIndex((time) => time > currentTime.value) || 0) - 1,
-    0
-  )
+const currentLine = ref(0)
+watchEffect(() => {
+  let lineIndex = -1,
+    lyricsIndex = 0
 
-  const pageHeight = document.documentElement.clientHeight
+  while (currentTime.value > lyricsLineTime.value[lyricsIndex]) {
+    lineIndex = lyricsIndex
+    lyricsIndex++
+  }
 
   lyricsRef.value?.scrollTo({
-    top: (lyricsLineRefs.value?.[currentLine]?.offsetTop || 0) - (pageHeight * 5) / 100,
+    top: lineIndex === -1 ? 0 : (lyricsLineRefs.value?.[lineIndex]?.offsetTop ?? 0),
     behavior: 'smooth'
   })
 
-  return currentLine
+  currentLine.value = lineIndex
 })
 
 watch(
@@ -99,8 +99,9 @@ watch(
   [currentTime, () => currentMusic.value?.duration],
   ([currentTime, duration]) => {
     if (currentTime >= (duration || 0) * 1000) {
-      clear()
-      start(0)
+      // 歌曲播放到结尾时，停止计时器，保持歌词在最后位置
+      // 等待 iTunes 发送新的曲目事件后再重置
+      stop()
     }
   },
   { immediate: true }
@@ -115,6 +116,9 @@ onBeforeMount(() => {
   window.electronAPI.onItunesMusicUpdate((data) => {
     currentMusic.value = data.currentMusic
     isPlaying.value = data.isPlaying
+  })
+  window.electronAPI.onItunesTimeCalibrate((data) => {
+    calibrate(data.elapsedTime * 1000)
   })
 })
 </script>
@@ -174,7 +178,6 @@ onBeforeMount(() => {
 .lyrics {
   width: 100%;
   height: calc(100% - 30px);
-  min-height: 300px;
   position: fixed;
   top: 0;
   left: 0;
@@ -193,7 +196,7 @@ onBeforeMount(() => {
     left: 0;
     content: '';
     width: 100%;
-    height: 5vh;
+    height: 3vh;
     background: linear-gradient(to bottom, @background-color, transparent);
   }
 
@@ -203,7 +206,7 @@ onBeforeMount(() => {
     left: 0;
     content: '';
     width: 100%;
-    height: 5vh;
+    height: 3vh;
     background: linear-gradient(to top, @background-color, transparent);
   }
 
@@ -211,25 +214,23 @@ onBeforeMount(() => {
     display: none;
   }
 
-  .blank-top {
-    height: 5vh;
-  }
-
   .blank-bottom {
     flex-shrink: 0;
+    width: 100%;
     height: 100vh;
   }
 
   .lyrics-line {
-    width: calc(100% - 50px);
+    width: 100%;
     height: auto;
     flex-shrink: 0;
-    padding: 20px 0;
+    padding: 20px 25px;
     white-space: normal;
     text-align: center;
     font-size: 20px;
     font-weight: bold;
     color: #00000085;
+    box-sizing: border-box;
 
     &.current {
       color: #000;

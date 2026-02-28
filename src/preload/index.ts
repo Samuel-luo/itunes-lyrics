@@ -6,6 +6,8 @@ const customAPI = {
   sendWindowControl: (action) => ipcRenderer.send(action),
   onItunesMusicUpdate: (callback) =>
     ipcRenderer.on('itunes-music-update', (_event, data) => callback(data)),
+  onItunesTimeCalibrate: (callback) =>
+    ipcRenderer.on('itunes-time-calibrate', (_event, data) => callback(data)),
   fetchLyrics: (music: CurrentMusic) => ipcRenderer.invoke('fetch-lyrics', music)
 }
 

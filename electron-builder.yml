@@ -11,8 +11,6 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
-  - '**/node_modules/itunes-bridge/wscript/**/*'
-  - '**/node_modules/itunes-bridge/jxa/**/*'
 win:
   executableName: lyrics
 nsis:

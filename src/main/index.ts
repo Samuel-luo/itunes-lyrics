@@ -3,7 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import makeWindowControllable from './window-controls'
-import listenItunes from './itunes-listener'
+import listenMedia from './media-listener.js'
 import fetchLyricsHandler from './lyrics-fetch'
 
 function createWindow(): void {
@@ -33,7 +33,7 @@ function createWindow(): void {
 
   mainWindow.webContents.on('did-finish-load', () => {
     makeWindowControllable(mainWindow)
-    listenItunes(mainWindow)
+    listenMedia(mainWindow)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
