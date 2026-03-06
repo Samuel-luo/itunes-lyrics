@@ -5,6 +5,7 @@ interface CurrentMusic {
   duration: number // 歌曲时长
   elapsedTime: number // 已播放时间
   remainingTime: number // 剩余时间
+  appName?: string // 播放器名称
 }
 
 type Lyrics =

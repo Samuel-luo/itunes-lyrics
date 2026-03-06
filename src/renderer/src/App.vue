@@ -4,12 +4,21 @@
     <div class="control-button minimize" @click="handleWindowControls('minimize')" />
     <div class="control-button maximize" @click="handleWindowControls('maximize')" />
   </div>
-  <div class="music-info">
-    <div class="music-name">{{ currentMusic?.name }}</div>
-    &nbsp;-&nbsp;
-    <div class="music-artist">{{ currentMusic?.artist }}</div>
-    &nbsp;-&nbsp;
-    <div class="music-album">{{ currentMusic?.album }}</div>
+  <div ref="musicInfoRef" class="music-info">
+    <div
+      ref="musicInfoScrollWrapperRef"
+      class="music-info-scroll-wrapper"
+      :class="{ slide: musicInfoWidthDifference > 0 }"
+      :data-width="musicInfoWidthDifference"
+    >
+      <div class="music-name">{{ currentMusic?.name }}</div>
+      &nbsp;-&nbsp;
+      <div class="music-artist">{{ currentMusic?.artist }}</div>
+      &nbsp;-&nbsp;
+      <div class="music-album">{{ currentMusic?.album }}</div>
+      &nbsp;-&nbsp;
+      <div class="music-app-name">{{ currentMusic?.appName }}</div>
+    </div>
   </div>
   <div ref="lyricsRef" class="lyrics">
     <div
@@ -30,9 +39,17 @@
 import { computed, onBeforeMount, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import parseLyrics from '@renderer/utils/lyrics-parser'
 import useMusicTime from '@renderer/utils/music-time'
+import { useElementSize } from '@vueuse/core'
 
 const lyricsRef = useTemplateRef<HTMLDivElement>('lyricsRef')
 const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>('lyricsLineRefs')
+const musicInfoRef = useTemplateRef<HTMLDivElement>('musicInfoRef')
+const musicInfoScrollWrapperRef = useTemplateRef<HTMLDivElement>('musicInfoScrollWrapperRef')
+const { width: musicInfoWidth } = useElementSize(musicInfoRef)
+const { width: musicInfoScrollWrapperWidth } = useElementSize(musicInfoScrollWrapperRef)
+const musicInfoWidthDifference = computed(() =>
+  Math.max(musicInfoScrollWrapperWidth.value - musicInfoWidth.value, 0)
+)
 const currentMusic = ref<globalThis.CurrentMusic | null>(null)
 const isPlaying = ref(false)
 const lyrics = ref<{ time: number; content: string }[]>([])
@@ -64,13 +81,14 @@ watch(
     () => currentMusic.value?.artist,
     () => currentMusic.value?.album,
     () => currentMusic.value?.elapsedTime,
+    () => currentMusic.value?.appName,
     () => isPlaying.value
   ],
   async (
-    [name, artist, album, elapsedTime, isPlaying],
-    [oldName, oldArtist, oldAlbum, oldElapsedTime, oldIsPlaying]
+    [name, artist, album, elapsedTime, appName, isPlaying],
+    [oldName, oldArtist, oldAlbum, oldElapsedTime, oldAppName, oldIsPlaying]
   ) => {
-    if (name !== oldName || artist !== oldArtist || album !== oldAlbum) {
+    if (name !== oldName || artist !== oldArtist || album !== oldAlbum || appName !== oldAppName) {
       console.log('song changed')
 
       clear()
@@ -163,16 +181,40 @@ onBeforeMount(() => {
 .music-info {
   position: fixed;
   top: 8px;
-  left: 8px;
-  width: 100%;
+  left: 68px;
+  width: calc(100% - 76px);
   height: 12px;
-  padding-left: 60px;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
+  overflow: hidden;
+
+  .music-info-scroll-wrapper {
+    width: fit-content;
+    height: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 12px;
+    white-space: nowrap;
+
+    &.slide {
+      animation: slide 10s linear infinite;
+    }
+  }
+
+  @keyframes slide {
+    0%,
+    40% {
+      transform: translateX(0);
+    }
+    50%,
+    90% {
+      transform: translateX(calc(attr(data-width px) * -1));
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
 }
 
 .lyrics {

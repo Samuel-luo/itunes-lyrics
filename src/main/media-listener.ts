@@ -91,7 +91,8 @@ async function getNowPlaying(): Promise<{ info: NowPlayingInfo; scriptDuration: 
         duration: 0,
         elapsedTime: 0,
         remainingTime: 0,
-        playerState: 'stopped'
+        playerState: 'stopped',
+        appName: ''
       },
       scriptDuration: 0
     }
@@ -171,7 +172,8 @@ export class MusicController {
           album: info.album,
           duration: info.duration,
           elapsedTime: compensatedElapsedTime,
-          remainingTime: info.remainingTime
+          remainingTime: info.remainingTime,
+          appName: info.appName
         }
         this.isPlaying = isNowPlaying
 
