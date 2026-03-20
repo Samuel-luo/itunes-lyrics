@@ -26,7 +26,8 @@
     "@spicysparks/lrc-api": "^1.8.0",
     "@vueuse/core": "^14.2.1",
     "axios": "^1.13.4",
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "electron-liquid-glass": "^1.1.1"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "3.0.0",

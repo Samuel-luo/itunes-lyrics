@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import makeWindowControllable from './window-controls'
 import listenMedia from './media-listener.js'
 import fetchLyricsHandler from './lyrics-fetch'
+import liquidGlass from 'electron-liquid-glass'
 
 function createWindow(): void {
   // Create the browser window.
@@ -16,6 +17,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     frame: false,
     transparent: true,
+    vibrancy: undefined,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -32,6 +34,12 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.on('did-finish-load', () => {
+    // 🪄 Apply effect, get handle
+    const glassId = liquidGlass.addView(mainWindow.getNativeWindowHandle(), {
+      tintColor: '#ffffff60'
+    })
+    liquidGlass.unstable_setVariant(glassId, 2)
+
     makeWindowControllable(mainWindow)
     listenMedia(mainWindow)
   })

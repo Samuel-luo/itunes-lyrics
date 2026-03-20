@@ -296,25 +296,25 @@ onBeforeMount(() => {
   overflow-y: auto;
   -webkit-app-region: no-drag;
 
-  &::before {
-    position: fixed;
-    top: 30px;
-    left: 0;
-    content: '';
-    width: 100%;
-    height: 3vh;
-    background: linear-gradient(to bottom, @background-color, transparent);
-  }
+  //   &::before {
+  //     position: fixed;
+  //     top: 30px;
+  //     left: 0;
+  //     content: '';
+  //     width: 100%;
+  //     height: 3vh;
+  //     background: linear-gradient(to bottom, @background-color, transparent);
+  //   }
 
-  &::after {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    content: '';
-    width: 100%;
-    height: 3vh;
-    background: linear-gradient(to top, @background-color, transparent);
-  }
+  //   &::after {
+  //     position: fixed;
+  //     bottom: 0;
+  //     left: 0;
+  //     content: '';
+  //     width: 100%;
+  //     height: 3vh;
+  //     background: linear-gradient(to top, @background-color, transparent);
+  //   }
 
   &::-webkit-scrollbar {
     display: none;
