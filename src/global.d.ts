@@ -7,12 +7,3 @@ interface CurrentMusic {
   remainingTime: number // 剩余时间
   appName?: string // 播放器名称
 }
-
-type Lyrics =
-  | {
-      success: true
-      lyrics: string
-    }
-  | {
-      success: false
-    }

@@ -6,7 +6,7 @@ export interface IElectronAPI extends ElectronAPI {
     callback: (data: { currentMusic: CurrentMusic | null; isPlaying: boolean }) => void
   ) => void
   onItunesTimeCalibrate: (callback: (data: { elapsedTime: number }) => void) => void
-  fetchLyrics: (music: CurrentMusic) => Promise<Lyrics>
+  fetchLyrics: (music: CurrentMusic) => Promise<stirng[]>
 }
 
 declare global {

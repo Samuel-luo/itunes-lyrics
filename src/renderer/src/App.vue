@@ -4,6 +4,16 @@
     <div class="control-button minimize" @click="handleWindowControls('minimize')" />
     <div class="control-button maximize" @click="handleWindowControls('maximize')" />
   </div>
+  <div class="lyrics-switch">
+    <span class="lyrics-select-label">
+      {{ lyricses.length ? `L${selectedLyricsIndex + 1}` : 'L□' }}
+    </span>
+    <select v-model.number="selectedLyricsIndex" class="lyrics-select" :disabled="!lyricses.length">
+      <option v-for="(_, index) in lyricses" :key="index" :value="index">
+        Lyrics {{ index + 1 }}
+      </option>
+    </select>
+  </div>
   <div ref="musicInfoRef" class="music-info">
     <div
       ref="musicInfoScrollWrapperRef"
@@ -52,6 +62,8 @@ const musicInfoWidthDifference = computed(() =>
 )
 const currentMusic = ref<globalThis.CurrentMusic | null>(null)
 const isPlaying = ref(false)
+const lyricses = ref<string[]>([])
+const selectedLyricsIndex = ref(0)
 const lyrics = ref<{ time: number; content: string }[]>([])
 const { currentTime, start, stop, resume, clear, calibrate } = useMusicTime(500)
 const lyricsLineTime = computed(() => {
@@ -95,13 +107,13 @@ watch(
       start(elapsedTime! * 1000)
 
       lyrics.value = [{ time: 0, content: '正在加载歌词...' }]
-      const res = await window.electronAPI.fetchLyrics({ ...currentMusic.value! })
-      if (!res.success) {
+      lyricses.value = await window.electronAPI.fetchLyrics({ ...currentMusic.value! })
+      if (!lyricses.value.length) {
         lyrics.value = [{ time: 0, content: '抱歉，没有找到歌词' }]
         return
       }
-      lyrics.value = parseLyrics(res.lyrics)
-      console.log(lyrics.value)
+      console.log(lyricses.value)
+      selectedLyricsIndex.value = 0
     } else if (elapsedTime !== oldElapsedTime) {
       console.log('duration changed')
       clear()
@@ -110,6 +122,16 @@ watch(
       console.log('playing changed')
       isPlaying ? resume() : stop()
     }
+  },
+  { immediate: true }
+)
+watch(
+  [selectedLyricsIndex, lyricses],
+  ([index, lyricses]) => {
+    const nextLyrics = lyricses[index]
+    if (!nextLyrics) return
+    lyrics.value = parseLyrics(nextLyrics)
+    console.log(lyrics.value)
   },
   { immediate: true }
 )
@@ -178,11 +200,53 @@ onBeforeMount(() => {
   }
 }
 
-.music-info {
+.lyrics-switch {
   position: fixed;
   top: 8px;
   left: 68px;
-  width: calc(100% - 76px);
+  width: 15px;
+  height: 12px;
+  -webkit-app-region: no-drag;
+
+  .lyrics-select-label {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    text-decoration: underline;
+    font-size: 12px;
+    line-height: 12px;
+    white-space: nowrap;
+  }
+
+  .lyrics-select {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    color: transparent;
+    background: transparent;
+    font-size: 12px;
+    line-height: 12px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    z-index: 1;
+  }
+}
+
+.music-info {
+  position: fixed;
+  top: 8px;
+  left: 93px;
+  width: calc(100% - 101px);
   height: 12px;
   overflow: hidden;
 

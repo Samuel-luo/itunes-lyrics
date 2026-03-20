@@ -2,7 +2,14 @@ import { ipcMain } from 'electron'
 import { searchLyrics } from '@spicysparks/lrc-api'
 import axios from 'axios'
 
-const fetchLyricsWithLyricsApi = async (music: CurrentMusic): Promise<Lyrics> => {
+type LyricsResponse =
+  | {
+      success: true
+      lyrics: string
+    }
+  | { success: false }
+
+const fetchLyricsWithLyricsApi = async (music: CurrentMusic): Promise<LyricsResponse> => {
   try {
     const lyrics = await axios.get('https://api.lrc.cx/lyrics', {
       params: {
@@ -18,24 +25,29 @@ const fetchLyricsWithLyricsApi = async (music: CurrentMusic): Promise<Lyrics> =>
   }
 }
 
-const lyricsFullSearch = async (music: CurrentMusic): Promise<Lyrics> => {
+const lyricsFullSearch = async (music: CurrentMusic): Promise<string[]> => {
   const services = [
     [fetchLyricsWithLyricsApi],
     [searchLyrics, (music: CurrentMusic) => [music.name, music.artist]]
   ] as const
 
-  for (const service of services) {
-    try {
-      return await service[0].apply(
-        null,
-        (service[1] || ((music: CurrentMusic) => [music]))?.(music)
-      )
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  return { success: false }
+  return (
+    await Promise.all(
+      services.map(async (service) => {
+        try {
+          return await service[0].apply(
+            null,
+            (service[1] || ((music: CurrentMusic) => [music]))?.(music)
+          )
+        } catch (err) {
+          console.error(err)
+          return { success: false }
+        }
+      })
+    )
+  )
+    .filter((result: LyricsResponse) => result.success)
+    .map((result) => result.lyrics)
 }
 
 const fetchLyricsHandler = (): void => {
