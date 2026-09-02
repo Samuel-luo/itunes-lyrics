@@ -38,7 +38,7 @@ function createWindow(): void {
     const glassId = liquidGlass.addView(mainWindow.getNativeWindowHandle(), {
       tintColor: '#ffffff60'
     })
-    liquidGlass.unstable_setVariant(glassId, 2)
+    liquidGlass.unstable_setVariant(glassId, 19)
 
     makeWindowControllable(mainWindow)
     listenMedia(mainWindow)
