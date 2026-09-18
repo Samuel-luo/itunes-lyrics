@@ -8,7 +8,8 @@ const customAPI = {
     ipcRenderer.on('itunes-music-update', (_event, data) => callback(data)),
   onItunesTimeCalibrate: (callback) =>
     ipcRenderer.on('itunes-time-calibrate', (_event, data) => callback(data)),
-  fetchLyrics: (music: CurrentMusic) => ipcRenderer.invoke('fetch-lyrics', music)
+  fetchLyrics: (music: CurrentMusic) => ipcRenderer.invoke('fetch-lyrics', music),
+  setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.send('set-ignore-mouse-events', ignore)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

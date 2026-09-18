@@ -7,6 +7,7 @@ export interface IElectronAPI extends ElectronAPI {
   ) => void
   onItunesTimeCalibrate: (callback: (data: { elapsedTime: number }) => void) => void
   fetchLyrics: (music: CurrentMusic) => Promise<stirng[]>
+  setIgnoreMouseEvents: (ignore: boolean) => void
 }
 
 declare global {

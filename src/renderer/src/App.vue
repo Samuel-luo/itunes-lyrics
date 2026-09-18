@@ -1,20 +1,106 @@
 <template>
-  <div class="window-controls">
+  <div v-if="!pinned" class="window-controls">
     <div class="control-button close" @click="handleWindowControls('close')" />
     <div class="control-button minimize" @click="handleWindowControls('minimize')" />
     <div class="control-button maximize" @click="handleWindowControls('maximize')" />
   </div>
-  <div class="lyrics-switch">
-    <span class="lyrics-select-label">
-      {{ lyricses.length ? `L${selectedLyricsIndex + 1}` : 'L□' }}
-    </span>
-    <select v-model.number="selectedLyricsIndex" class="lyrics-select" :disabled="!lyricses.length">
-      <option v-for="(_, index) in lyricses" :key="index" :value="index">
+  <div v-if="!pinned" ref="lyricsSwitchRef" class="lyrics-switch">
+    <button
+      type="button"
+      class="toolbar-trigger lyrics-switch-trigger"
+      title="歌词列表"
+      :disabled="!lyricses.length"
+      @click="toggleLyricsSwitchOpen"
+    >
+      <span class="toolbar-icon" />
+    </button>
+    <div v-show="lyricsSwitchOpen" class="lyrics-switch-popover">
+      <button
+        v-for="(_, index) in lyricses"
+        :key="index"
+        type="button"
+        class="lyrics-switch-option"
+        :class="{ active: index === selectedLyricsIndex }"
+        @click="selectLyrics(index)"
+      >
         Lyrics {{ index + 1 }}
-      </option>
-    </select>
+      </button>
+    </div>
   </div>
-  <div ref="musicInfoRef" class="music-info">
+  <div v-if="!pinned" ref="lyricsOffsetRef" class="lyrics-offset">
+    <button
+      type="button"
+      class="toolbar-trigger lyrics-offset-trigger"
+      title="歌词偏移"
+      @click="toggleOffsetOpen"
+    >
+      <span class="toolbar-icon" />
+    </button>
+    <div v-show="offsetOpen" class="lyrics-offset-popover">
+      <div class="lyrics-offset-row">
+        <button
+          type="button"
+          class="lyrics-offset-nudge"
+          title="后退 0.5s"
+          @click="nudgeOffset(-1)"
+        >
+          −
+        </button>
+        <span class="lyrics-offset-value">{{ offsetDisplay }}</span>
+        <button type="button" class="lyrics-offset-nudge" title="前进 0.5s" @click="nudgeOffset(1)">
+          +
+        </button>
+      </div>
+      <label class="lyrics-offset-all">
+        <input type="checkbox" :checked="applyToAll" @change="toggleApplyToAll" />
+        所有歌曲
+      </label>
+    </div>
+  </div>
+  <div v-if="!pinned" ref="lyricsColorRef" class="lyrics-color">
+    <button
+      type="button"
+      class="toolbar-trigger lyrics-color-trigger"
+      title="颜色"
+      @click="toggleColorOpen"
+    >
+      <span class="toolbar-icon" />
+    </button>
+    <div v-show="colorOpen" class="lyrics-color-popover">
+      <label class="lyrics-color-row">
+        标题
+        <input type="color" :value="toColorInputValue(titleColor)" @input="setTitleColor" />
+      </label>
+      <label class="lyrics-color-row">
+        当前歌词
+        <input
+          type="color"
+          :value="toColorInputValue(currentLyricsColor)"
+          @input="setCurrentLyricsColor"
+        />
+      </label>
+      <label class="lyrics-color-row">
+        其他歌词
+        <input type="color" :value="toColorInputValue(lyricsColor)" @input="setLyricsColor" />
+      </label>
+    </div>
+  </div>
+  <div
+    class="lyrics-pin"
+    :class="{ pinned }"
+    @mouseenter="onPinMouseEnter"
+    @mouseleave="onPinMouseLeave"
+  >
+    <button
+      type="button"
+      class="toolbar-trigger lyrics-pin-trigger"
+      :title="pinned ? '取消固定' : '固定'"
+      @click="togglePinned"
+    >
+      <span class="toolbar-icon" />
+    </button>
+  </div>
+  <div ref="musicInfoRef" class="music-info" :class="{ pinned }">
     <div
       ref="musicInfoScrollWrapperRef"
       class="music-info-scroll-wrapper"
@@ -49,12 +135,20 @@
 import { computed, onBeforeMount, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import parseLyrics from '@renderer/utils/lyrics-parser'
 import useMusicTime from '@renderer/utils/music-time'
-import { useElementSize } from '@vueuse/core'
+import { onClickOutside, useElementSize } from '@vueuse/core'
+
+const OFFSET_STEP = 500
+const OFFSET_STORAGE_KEY = 'lyrics-offset'
+const COLOR_STORAGE_KEY = 'lyrics-colors'
+const DEFAULT_TITLE_COLOR = '#000000'
+const DEFAULT_LYRICS_COLOR = '#00000085'
+const DEFAULT_CURRENT_LYRICS_COLOR = '#000000'
 
 const lyricsRef = useTemplateRef<HTMLDivElement>('lyricsRef')
 const lyricsLineRefs = useTemplateRef<HTMLDivElement[]>('lyricsLineRefs')
 const musicInfoRef = useTemplateRef<HTMLDivElement>('musicInfoRef')
 const musicInfoScrollWrapperRef = useTemplateRef<HTMLDivElement>('musicInfoScrollWrapperRef')
+const pinned = ref(false)
 const { width: musicInfoWidth } = useElementSize(musicInfoRef)
 const { width: musicInfoScrollWrapperWidth } = useElementSize(musicInfoScrollWrapperRef)
 const musicInfoWidthDifference = computed(() =>
@@ -66,6 +160,174 @@ const lyricses = ref<string[]>([])
 const selectedLyricsIndex = ref(0)
 const lyrics = ref<{ time: number; content: string }[]>([])
 const { currentTime, start, stop, resume, clear, calibrate } = useMusicTime(500)
+const lyricsOffsetRef = useTemplateRef<HTMLDivElement>('lyricsOffsetRef')
+const lyricsSwitchRef = useTemplateRef<HTMLDivElement>('lyricsSwitchRef')
+const lyricsSwitchOpen = ref(false)
+const offsetOpen = ref(false)
+const applyToAll = ref(false)
+const globalOffset = ref(0)
+const songOffsets = ref<Record<string, number>>({})
+const songKey = computed(() => {
+  const music = currentMusic.value
+  if (!music) return ''
+  return `${music.name}\0${music.artist}\0${music.album}`
+})
+const currentOffset = computed(() => {
+  if (applyToAll.value) return globalOffset.value
+  const key = songKey.value
+  return key ? (songOffsets.value[key] ?? 0) : 0
+})
+const offsetDisplay = computed(() => {
+  const seconds = currentOffset.value / 1000
+  const sign = seconds > 0 ? '+' : ''
+  return `${sign}${seconds.toFixed(1)}s`
+})
+const persistOffset = (): void => {
+  localStorage.setItem(
+    OFFSET_STORAGE_KEY,
+    JSON.stringify({
+      applyToAll: applyToAll.value,
+      globalOffset: globalOffset.value,
+      songOffsets: songOffsets.value
+    })
+  )
+}
+const setOffset = (value: number): void => {
+  if (applyToAll.value) {
+    globalOffset.value = value
+  } else {
+    const key = songKey.value
+    if (!key) return
+    if (value === 0) {
+      delete songOffsets.value[key]
+    } else {
+      songOffsets.value[key] = value
+    }
+  }
+  persistOffset()
+}
+const nudgeOffset = (direction: 1 | -1): void => {
+  setOffset(currentOffset.value + direction * OFFSET_STEP)
+}
+const toggleApplyToAll = (): void => {
+  const offset = currentOffset.value
+  applyToAll.value = !applyToAll.value
+  setOffset(offset)
+}
+try {
+  const raw = localStorage.getItem(OFFSET_STORAGE_KEY)
+  if (raw) {
+    const parsed = JSON.parse(raw) as {
+      applyToAll?: boolean
+      globalOffset?: number
+      songOffsets?: Record<string, number>
+    }
+    applyToAll.value = Boolean(parsed.applyToAll)
+    globalOffset.value = Number(parsed.globalOffset) || 0
+    songOffsets.value =
+      parsed.songOffsets && typeof parsed.songOffsets === 'object' ? parsed.songOffsets : {}
+  }
+} catch {
+  // ignore invalid persisted offset
+}
+onClickOutside(lyricsOffsetRef, () => {
+  offsetOpen.value = false
+})
+onClickOutside(lyricsSwitchRef, () => {
+  lyricsSwitchOpen.value = false
+})
+const lyricsColorRef = useTemplateRef<HTMLDivElement>('lyricsColorRef')
+const colorOpen = ref(false)
+const titleColor = ref(DEFAULT_TITLE_COLOR)
+const lyricsColor = ref(DEFAULT_LYRICS_COLOR)
+const currentLyricsColor = ref(DEFAULT_CURRENT_LYRICS_COLOR)
+const toColorInputValue = (color: string): string =>
+  color.length >= 7 ? color.slice(0, 7) : DEFAULT_TITLE_COLOR
+const persistColors = (): void => {
+  localStorage.setItem(
+    COLOR_STORAGE_KEY,
+    JSON.stringify({
+      titleColor: titleColor.value,
+      lyricsColor: lyricsColor.value,
+      currentLyricsColor: currentLyricsColor.value
+    })
+  )
+}
+const setTitleColor = (event: Event): void => {
+  titleColor.value = (event.target as HTMLInputElement).value
+  persistColors()
+}
+const setLyricsColor = (event: Event): void => {
+  lyricsColor.value = (event.target as HTMLInputElement).value
+  persistColors()
+}
+const setCurrentLyricsColor = (event: Event): void => {
+  currentLyricsColor.value = (event.target as HTMLInputElement).value
+  persistColors()
+}
+const toggleLyricsSwitchOpen = (): void => {
+  if (!lyricses.value.length) return
+  offsetOpen.value = false
+  colorOpen.value = false
+  lyricsSwitchOpen.value = !lyricsSwitchOpen.value
+}
+const selectLyrics = (index: number): void => {
+  selectedLyricsIndex.value = index
+  lyricsSwitchOpen.value = false
+}
+const toggleOffsetOpen = (): void => {
+  lyricsSwitchOpen.value = false
+  colorOpen.value = false
+  offsetOpen.value = !offsetOpen.value
+}
+const toggleColorOpen = (): void => {
+  lyricsSwitchOpen.value = false
+  offsetOpen.value = false
+  colorOpen.value = !colorOpen.value
+}
+const togglePinned = (): void => {
+  pinned.value = !pinned.value
+}
+const onPinMouseEnter = (): void => {
+  if (pinned.value) window.electronAPI.setIgnoreMouseEvents(false)
+}
+const onPinMouseLeave = (): void => {
+  if (pinned.value) window.electronAPI.setIgnoreMouseEvents(true)
+}
+watch(pinned, (isPinned) => {
+  document.documentElement.classList.toggle('pinned', isPinned)
+  if (!isPinned) {
+    window.electronAPI.setIgnoreMouseEvents(false)
+    return
+  }
+  lyricsSwitchOpen.value = false
+  offsetOpen.value = false
+  colorOpen.value = false
+})
+try {
+  const raw = localStorage.getItem(COLOR_STORAGE_KEY)
+  if (raw) {
+    const parsed = JSON.parse(raw) as {
+      titleColor?: string
+      lyricsColor?: string
+      currentLyricsColor?: string
+    }
+    if (parsed.titleColor) titleColor.value = parsed.titleColor
+    if (parsed.lyricsColor) lyricsColor.value = parsed.lyricsColor
+    if (parsed.currentLyricsColor) currentLyricsColor.value = parsed.currentLyricsColor
+  }
+} catch {
+  // ignore invalid persisted colors
+}
+onClickOutside(lyricsColorRef, () => {
+  colorOpen.value = false
+})
+watchEffect(() => {
+  const root = document.documentElement
+  root.style.setProperty('--title-color', titleColor.value)
+  root.style.setProperty('--lyrics-color', lyricsColor.value)
+  root.style.setProperty('--current-lyrics-color', currentLyricsColor.value)
+})
 const lyricsLineTime = computed(() => {
   return lyrics.value.map((line) => line.time)
 })
@@ -73,8 +335,9 @@ const currentLine = ref(0)
 watchEffect(() => {
   let lineIndex = -1,
     lyricsIndex = 0
+  const adjustedTime = currentTime.value + currentOffset.value
 
-  while (currentTime.value > lyricsLineTime.value[lyricsIndex]) {
+  while (adjustedTime > lyricsLineTime.value[lyricsIndex]) {
     lineIndex = lyricsIndex
     lyricsIndex++
   }
@@ -200,55 +463,268 @@ onBeforeMount(() => {
   }
 }
 
+.toolbar-trigger {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  .toolbar-icon {
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+  }
+}
+
 .lyrics-switch {
   position: fixed;
   top: 8px;
   left: 68px;
-  width: 15px;
+  width: 12px;
   height: 12px;
+  z-index: 1000;
+  color: var(--title-color);
   -webkit-app-region: no-drag;
 
-  .lyrics-select-label {
+  .toolbar-icon {
+    -webkit-mask-image: url('./assets/icons/lyrics-list.svg');
+    mask-image: url('./assets/icons/lyrics-list.svg');
+  }
+
+  .lyrics-switch-popover {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    top: 20px;
+    left: 0;
+    padding: 8px;
     display: flex;
-    align-items: center;
-    pointer-events: none;
-    text-decoration: underline;
-    font-size: 12px;
-    line-height: 12px;
+    flex-direction: column;
+    gap: 2px;
+    color: #000;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(16px);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     white-space: nowrap;
   }
 
-  .lyrics-select {
-    position: absolute;
-    width: 100%;
-    height: 100%;
+  .lyrics-switch-option {
+    margin: 0;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font-size: 11px;
+    line-height: 12px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &.active {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    &.active {
+      font-weight: 600;
+    }
+  }
+}
+
+.lyrics-offset {
+  position: fixed;
+  top: 8px;
+  left: 89px;
+  width: 12px;
+  height: 12px;
+  z-index: 1000;
+  color: var(--title-color);
+  -webkit-app-region: no-drag;
+
+  .toolbar-icon {
+    -webkit-mask-image: url('./assets/icons/lyrics-offset.svg');
+    mask-image: url('./assets/icons/lyrics-offset.svg');
+  }
+
+  .lyrics-offset-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .lyrics-offset-nudge {
+    width: 22px;
+    height: 22px;
     margin: 0;
     padding: 0;
     border: none;
-    color: transparent;
-    background: transparent;
-    font-size: 12px;
-    line-height: 12px;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.06);
+    color: inherit;
+    font-size: 14px;
+    line-height: 22px;
     cursor: pointer;
-    z-index: 1;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .lyrics-offset-value {
+    min-width: 42px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 12px;
+    text-align: center;
+  }
+
+  .lyrics-offset-all {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 12px;
+    cursor: pointer;
+
+    input {
+      margin: 0;
+    }
+  }
+
+  .lyrics-offset-popover {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #000;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(16px);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    white-space: nowrap;
+  }
+}
+
+.lyrics-color {
+  position: fixed;
+  top: 8px;
+  left: 107px;
+  width: 12px;
+  height: 12px;
+  z-index: 1000;
+  color: var(--title-color);
+  -webkit-app-region: no-drag;
+
+  .toolbar-icon {
+    -webkit-mask-image: url('./assets/icons/lyrics-color.svg');
+    mask-image: url('./assets/icons/lyrics-color.svg');
+  }
+
+  .lyrics-color-popover {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #000;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(16px);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    white-space: nowrap;
+  }
+
+  .lyrics-color-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11px;
+    line-height: 12px;
+    cursor: pointer;
+
+    input[type='color'] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+
+      &::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+
+      &::-webkit-color-swatch {
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        border-radius: 3px;
+      }
+    }
+  }
+}
+
+.lyrics-pin {
+  position: fixed;
+  top: 8px;
+  left: 126px;
+  width: 12px;
+  height: 12px;
+  z-index: 1000;
+  color: var(--title-color);
+  -webkit-app-region: no-drag;
+
+  &.pinned {
+    left: 8px;
+  }
+
+  .toolbar-icon {
+    -webkit-mask-image: url('./assets/icons/lyrics-pin.svg');
+    mask-image: url('./assets/icons/lyrics-pin.svg');
   }
 }
 
 .music-info {
   position: fixed;
   top: 8px;
-  left: 93px;
-  width: calc(100% - 101px);
+  left: 144px;
+  width: calc(100% - 152px);
   height: 12px;
   overflow: hidden;
+  color: var(--title-color);
+
+  &.pinned {
+    left: 26px;
+    width: calc(100% - 34px);
+  }
 
   .music-info-scroll-wrapper {
     width: fit-content;
@@ -335,11 +811,11 @@ onBeforeMount(() => {
     text-align: center;
     font-size: 20px;
     font-weight: bold;
-    color: #00000085;
+    color: var(--lyrics-color);
     box-sizing: border-box;
 
     &.current {
-      color: #000;
+      color: var(--current-lyrics-color);
 
       .interlude {
         animation: breathe 3s linear infinite;

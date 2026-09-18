@@ -24,10 +24,18 @@ const makeWindowControllable = (mainWindow: BrowserWindow): void => {
   ipcMain.on('window-minimize', minimizeHandler)
   ipcMain.on('window-maximize', maximizeHandler)
 
+  const setIgnoreMouseEventsHandler = (_event: unknown, ignore: boolean): void => {
+    if (mainWindow.isDestroyed()) return
+    mainWindow.setIgnoreMouseEvents(ignore, { forward: ignore })
+  }
+
+  ipcMain.on('set-ignore-mouse-events', setIgnoreMouseEventsHandler)
+
   mainWindow.on('closed', () => {
     ipcMain.removeListener('window-close', closeHandler)
     ipcMain.removeListener('window-minimize', minimizeHandler)
     ipcMain.removeListener('window-maximize', maximizeHandler)
+    ipcMain.removeListener('set-ignore-mouse-events', setIgnoreMouseEventsHandler)
   })
 }
 
