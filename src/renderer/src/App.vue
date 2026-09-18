@@ -57,7 +57,7 @@
       </label>
     </div>
   </div>
-  <div v-if="!pinned" ref="lyricsColorRef" class="lyrics-color">
+  <div v-if="!pinned" ref="lyricsColorRef" class="lyrics-color" :class="{ open: colorOpen }">
     <button
       type="button"
       class="toolbar-trigger lyrics-color-trigger"
@@ -67,22 +67,55 @@
       <span class="toolbar-icon" />
     </button>
     <div v-show="colorOpen" class="lyrics-color-popover">
-      <label class="lyrics-color-row">
-        标题
-        <input type="color" :value="toColorInputValue(titleColor)" @input="setTitleColor" />
-      </label>
-      <label class="lyrics-color-row">
-        当前歌词
-        <input
-          type="color"
-          :value="toColorInputValue(currentLyricsColor)"
-          @input="setCurrentLyricsColor"
-        />
-      </label>
-      <label class="lyrics-color-row">
-        其他歌词
-        <input type="color" :value="toColorInputValue(lyricsColor)" @input="setLyricsColor" />
-      </label>
+      <div class="lyrics-color-row">
+        <span>标题</span>
+        <div class="lyrics-color-controls">
+          <input type="color" :value="toColorInputValue(titleColor)" @input="setTitleColor" />
+          <input
+            type="range"
+            class="lyrics-color-alpha"
+            min="0"
+            max="100"
+            :value="toAlphaPercent(titleColor)"
+            title="透明度"
+            @input="setTitleAlpha"
+          />
+        </div>
+      </div>
+      <div class="lyrics-color-row">
+        <span>当前歌词</span>
+        <div class="lyrics-color-controls">
+          <input
+            type="color"
+            :value="toColorInputValue(currentLyricsColor)"
+            @input="setCurrentLyricsColor"
+          />
+          <input
+            type="range"
+            class="lyrics-color-alpha"
+            min="0"
+            max="100"
+            :value="toAlphaPercent(currentLyricsColor)"
+            title="透明度"
+            @input="setCurrentLyricsAlpha"
+          />
+        </div>
+      </div>
+      <div class="lyrics-color-row">
+        <span>其他歌词</span>
+        <div class="lyrics-color-controls">
+          <input type="color" :value="toColorInputValue(lyricsColor)" @input="setLyricsColor" />
+          <input
+            type="range"
+            class="lyrics-color-alpha"
+            min="0"
+            max="100"
+            :value="toAlphaPercent(lyricsColor)"
+            title="透明度"
+            @input="setLyricsAlpha"
+          />
+        </div>
+      </div>
     </div>
   </div>
   <div
@@ -243,6 +276,16 @@ const lyricsColor = ref(DEFAULT_LYRICS_COLOR)
 const currentLyricsColor = ref(DEFAULT_CURRENT_LYRICS_COLOR)
 const toColorInputValue = (color: string): string =>
   color.length >= 7 ? color.slice(0, 7) : DEFAULT_TITLE_COLOR
+const toAlphaHex = (color: string): string => (color.length >= 9 ? color.slice(7, 9) : 'ff')
+const toAlphaPercent = (color: string): number =>
+  Math.round((parseInt(toAlphaHex(color), 16) / 255) * 100)
+const withRgb = (color: string, rgb: string): string => `${rgb}${toAlphaHex(color)}`
+const withAlphaPercent = (color: string, percent: number): string => {
+  const alpha = Math.round(Math.min(100, Math.max(0, percent)) * 2.55)
+    .toString(16)
+    .padStart(2, '0')
+  return `${toColorInputValue(color)}${alpha}`
+}
 const persistColors = (): void => {
   localStorage.setItem(
     COLOR_STORAGE_KEY,
@@ -254,15 +297,39 @@ const persistColors = (): void => {
   )
 }
 const setTitleColor = (event: Event): void => {
-  titleColor.value = (event.target as HTMLInputElement).value
+  titleColor.value = withRgb(titleColor.value, (event.target as HTMLInputElement).value)
+  persistColors()
+}
+const setTitleAlpha = (event: Event): void => {
+  titleColor.value = withAlphaPercent(
+    titleColor.value,
+    Number((event.target as HTMLInputElement).value)
+  )
   persistColors()
 }
 const setLyricsColor = (event: Event): void => {
-  lyricsColor.value = (event.target as HTMLInputElement).value
+  lyricsColor.value = withRgb(lyricsColor.value, (event.target as HTMLInputElement).value)
+  persistColors()
+}
+const setLyricsAlpha = (event: Event): void => {
+  lyricsColor.value = withAlphaPercent(
+    lyricsColor.value,
+    Number((event.target as HTMLInputElement).value)
+  )
   persistColors()
 }
 const setCurrentLyricsColor = (event: Event): void => {
-  currentLyricsColor.value = (event.target as HTMLInputElement).value
+  currentLyricsColor.value = withRgb(
+    currentLyricsColor.value,
+    (event.target as HTMLInputElement).value
+  )
+  persistColors()
+}
+const setCurrentLyricsAlpha = (event: Event): void => {
+  currentLyricsColor.value = withAlphaPercent(
+    currentLyricsColor.value,
+    Number((event.target as HTMLInputElement).value)
+  )
   persistColors()
 }
 const toggleLyricsSwitchOpen = (): void => {
@@ -641,6 +708,10 @@ onBeforeMount(() => {
   color: var(--title-color);
   -webkit-app-region: no-drag;
 
+  &.open {
+    z-index: 1100;
+  }
+
   .toolbar-icon {
     -webkit-mask-image: url('./assets/icons/lyrics-color.svg');
     mask-image: url('./assets/icons/lyrics-color.svg');
@@ -669,26 +740,39 @@ onBeforeMount(() => {
     gap: 10px;
     font-size: 11px;
     line-height: 12px;
+  }
+
+  .lyrics-color-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  input[type='color'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
     cursor: pointer;
 
-    input[type='color'] {
-      width: 18px;
-      height: 18px;
-      margin: 0;
+    &::-webkit-color-swatch-wrapper {
       padding: 0;
-      border: none;
-      background: none;
-      cursor: pointer;
-
-      &::-webkit-color-swatch-wrapper {
-        padding: 0;
-      }
-
-      &::-webkit-color-swatch {
-        border: 1px solid rgba(0, 0, 0, 0.15);
-        border-radius: 3px;
-      }
     }
+
+    &::-webkit-color-swatch {
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+    }
+  }
+
+  .lyrics-color-alpha {
+    width: 64px;
+    height: 14px;
+    margin: 0;
+    accent-color: #333;
+    cursor: pointer;
   }
 }
 

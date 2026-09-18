@@ -27,7 +27,7 @@ function createWindow(): void {
   })
 
   mainWindow.removeMenu()
-  mainWindow.setAlwaysOnTop(true, 'screen-saver')
+  mainWindow.setAlwaysOnTop(true, 'floating')
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
