@@ -35,7 +35,9 @@ function createWindow(): void {
 
   mainWindow.webContents.on('did-finish-load', () => {
     // 🪄 Apply effect, get handle
-    const glassId = liquidGlass.addView(mainWindow.getNativeWindowHandle(), {})
+    const glassId = liquidGlass.addView(mainWindow.getNativeWindowHandle(), {
+      //   tintColor: '#ffffff00'
+    })
     liquidGlass.unstable_setVariant(glassId, 19)
 
     makeWindowControllable(mainWindow)

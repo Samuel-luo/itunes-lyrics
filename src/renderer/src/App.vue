@@ -52,7 +52,7 @@
         </button>
       </div>
       <label class="lyrics-offset-all">
-        <input type="checkbox" :checked="applyToAll" @change="toggleApplyToAll" />
+        <input v-model="applyToAll" type="checkbox" />
         所有歌曲
       </label>
     </div>
@@ -199,17 +199,14 @@ const lyricsSwitchOpen = ref(false)
 const offsetOpen = ref(false)
 const applyToAll = ref(false)
 const globalOffset = ref(0)
+const localOffset = ref(0)
 const songOffsets = ref<Record<string, number>>({})
 const songKey = computed(() => {
   const music = currentMusic.value
   if (!music) return ''
-  return `${music.name}\0${music.artist}\0${music.album}`
+  return [music.name, music.artist, music.album].join('::')
 })
-const currentOffset = computed(() => {
-  if (applyToAll.value) return globalOffset.value
-  const key = songKey.value
-  return key ? (songOffsets.value[key] ?? 0) : 0
-})
+const currentOffset = computed(() => (applyToAll.value ? globalOffset.value : localOffset.value))
 const offsetDisplay = computed(() => {
   const seconds = currentOffset.value / 1000
   const sign = seconds > 0 ? '+' : ''
@@ -225,27 +222,28 @@ const persistOffset = (): void => {
     })
   )
 }
+const writeSongOffset = (key: string, value: number): void => {
+  if (value === 0) {
+    if (!(key in songOffsets.value)) return
+    const next = { ...songOffsets.value }
+    delete next[key]
+    songOffsets.value = next
+    return
+  }
+  songOffsets.value = { ...songOffsets.value, [key]: value }
+}
 const setOffset = (value: number): void => {
   if (applyToAll.value) {
     globalOffset.value = value
   } else {
+    localOffset.value = value
     const key = songKey.value
-    if (!key) return
-    if (value === 0) {
-      delete songOffsets.value[key]
-    } else {
-      songOffsets.value[key] = value
-    }
+    if (key) writeSongOffset(key, value)
   }
   persistOffset()
 }
 const nudgeOffset = (direction: 1 | -1): void => {
   setOffset(currentOffset.value + direction * OFFSET_STEP)
-}
-const toggleApplyToAll = (): void => {
-  const offset = currentOffset.value
-  applyToAll.value = !applyToAll.value
-  setOffset(offset)
 }
 try {
   const raw = localStorage.getItem(OFFSET_STORAGE_KEY)
@@ -263,6 +261,25 @@ try {
 } catch {
   // ignore invalid persisted offset
 }
+watch(
+  songKey,
+  (key) => {
+    if (applyToAll.value) return
+    localOffset.value = key ? (songOffsets.value[key] ?? 0) : 0
+  },
+  { immediate: true }
+)
+watch(applyToAll, (checked, wasChecked) => {
+  if (wasChecked === undefined) return
+  if (checked) {
+    globalOffset.value = localOffset.value
+  } else {
+    localOffset.value = globalOffset.value
+    const key = songKey.value
+    if (key) writeSongOffset(key, localOffset.value)
+  }
+  persistOffset()
+})
 onClickOutside(lyricsOffsetRef, () => {
   offsetOpen.value = false
 })
