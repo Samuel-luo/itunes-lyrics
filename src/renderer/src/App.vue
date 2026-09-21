@@ -439,19 +439,24 @@ watch(
     () => currentMusic.value?.name,
     () => currentMusic.value?.artist,
     () => currentMusic.value?.album,
-    () => currentMusic.value?.elapsedTime,
-    () => currentMusic.value?.appName,
-    () => isPlaying.value
+    () => currentMusic.value?.appName
   ],
-  async (
-    [name, artist, album, elapsedTime, appName, isPlaying],
-    [oldName, oldArtist, oldAlbum, oldElapsedTime, oldAppName, oldIsPlaying]
-  ) => {
+  async ([name, artist, album, appName], [oldName, oldArtist, oldAlbum, oldAppName]) => {
     if (name !== oldName || artist !== oldArtist || album !== oldAlbum || appName !== oldAppName) {
+      if (!name && !artist) {
+        clear()
+        lyrics.value = []
+        lyricses.value = []
+        return
+      }
+
       console.log('song changed')
 
       clear()
-      start(elapsedTime! * 1000)
+      start((currentMusic.value?.elapsedTime || 0) * 1000)
+      if (!isPlaying.value) {
+        stop()
+      }
 
       lyrics.value = [{ time: 0, content: '正在加载歌词...' }]
       lyricses.value = await window.electronAPI.fetchLyrics({ ...currentMusic.value! })
@@ -461,16 +466,26 @@ watch(
       }
       console.log(lyricses.value)
       selectedLyricsIndex.value = 0
-    } else if (elapsedTime !== oldElapsedTime) {
-      console.log('duration changed')
-      clear()
-      start(elapsedTime! * 1000)
-    } else if (isPlaying !== oldIsPlaying) {
-      console.log('playing changed')
-      isPlaying ? resume() : stop()
     }
   },
   { immediate: true }
+)
+
+watch(isPlaying, (playing) => {
+  console.log('playing changed', playing)
+  playing ? resume() : stop()
+})
+
+watch(
+  () => currentMusic.value?.elapsedTime,
+  (newElapsedTime) => {
+    if (newElapsedTime === undefined) return
+    const diff = Math.abs(currentTime.value - newElapsedTime * 1000)
+    // 进度跳跃超过 2 秒（如用户手动快进/倒退拖动进度条），校准时间
+    if (diff > 2000) {
+      calibrate(newElapsedTime * 1000)
+    }
+  }
 )
 watch(
   [selectedLyricsIndex, lyricses],

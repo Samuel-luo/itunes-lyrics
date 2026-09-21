@@ -91,13 +91,12 @@ const useMusicTime = (
    * 避免长时间播放后本地计时器与实际播放位置产生偏移
    */
   const calibrate = (actualTime: number): void => {
-    if (!isRunning) return
-
     initTime = actualTime
     startTimestamp = performance.now()
     lastUpdateTime = actualTime
-    // 不直接设置 currentTime.value，让下一次 tick 自然更新
-    // 这样可以避免歌词突然跳动
+    if (!isRunning) {
+      currentTime.value = actualTime
+    }
   }
 
   return { currentTime, start, stop, resume, clear, calibrate }

@@ -31,19 +31,47 @@ function run() {
     var artist = info.valueForKey('kMRMediaRemoteNowPlayingInfoArtist');
     var album = info.valueForKey('kMRMediaRemoteNowPlayingInfoAlbum');
     var dur = info.valueForKey('kMRMediaRemoteNowPlayingInfoDuration');
-    var rate = info.valueForKey('kMRMediaRemoteNowPlayingInfoPlaybackRate');
     var meta = item.metadata;
-    var elapsed = meta ? meta.calculatedPlaybackPosition : 0;
     var pp = Req.localNowPlayingPlayerPath;
     var app = (pp && pp.client) ? pp.client.displayName : '';
+
+    // 播放状态：优先取系统级 MRNowPlayingRequest.localIsPlaying（与控制中心一致），
+    // 部分播放器暂停时不会更新 playbackRate，仅在该接口不可用时才回退到速率判断
+    var isPlaying = null;
+    try {
+      var lip = Req.localIsPlaying;
+      if (typeof lip === 'boolean') isPlaying = lip;
+    } catch(e) {}
+    if (isPlaying === null) {
+      var rate = null;
+      if (meta) {
+        try { rate = Number(meta.playbackRate); } catch(e) {}
+      }
+      if (rate === null || isNaN(rate)) {
+        var infoRate = info.valueForKey('kMRMediaRemoteNowPlayingInfoPlaybackRate');
+        rate = infoRate ? Number(infoRate.js) : 0;
+      }
+      isPlaying = rate > 0;
+    }
+
+    // 播放位置：calculatedPlaybackPosition 在暂停时仍会随系统时间推进，
+    // 因此暂停时改用播放器上报的静态 ElapsedTime
+    var elapsed = 0;
+    if (isPlaying && meta) {
+      elapsed = Number(meta.calculatedPlaybackPosition);
+    } else {
+      var infoElapsed = info.valueForKey('kMRMediaRemoteNowPlayingInfoElapsedTime');
+      elapsed = infoElapsed ? Number(infoElapsed.js) : (meta ? Number(meta.elapsedTime) : 0);
+    }
+
     return JSON.stringify({
       name: title ? title.js : '',
       artist: artist ? artist.js : '',
       album: album ? album.js : '',
       duration: dur ? Number(dur.js) : 0,
-      elapsedTime: Number(elapsed),
-      remainingTime: dur ? Number(dur.js) - Number(elapsed) : 0,
-      playerState: (rate && Number(rate.js) > 0) ? 'playing' : 'paused',
+      elapsedTime: elapsed,
+      remainingTime: dur ? Number(dur.js) - elapsed : 0,
+      playerState: isPlaying ? 'playing' : 'paused',
       appName: app ? app.js : ''
     });
   } catch(e) {
@@ -162,6 +190,8 @@ export class MusicController {
       }
 
       const isNowPlaying = info.playerState === 'playing'
+      // 暂停时位置是静态值，无需补偿脚本耗时
+      const elapsedTime = isNowPlaying ? compensatedElapsedTime : info.elapsedTime
 
       if (trackChanged) {
         // 曲目变化
@@ -171,7 +201,7 @@ export class MusicController {
           artist: info.artist,
           album: info.album,
           duration: info.duration,
-          elapsedTime: compensatedElapsedTime,
+          elapsedTime,
           remainingTime: info.remainingTime,
           appName: info.appName
         }
@@ -180,12 +210,10 @@ export class MusicController {
         const appLabel = info.appName ? ` [${info.appName}]` : ''
         console.log(
           chalk.yellow(
-            `✔ Now Playing: ${info.name} - ${info.artist}${appLabel} (${compensatedElapsedTime.toFixed(1)}s / ${info.duration.toFixed(0)}s)`
+            `✔ Now Playing: ${info.name} - ${info.artist}${appLabel} (${elapsedTime.toFixed(1)}s / ${info.duration.toFixed(0)}s)`
           )
         )
-        if (isNowPlaying) {
-          console.log(chalk.green('▶ Playing'))
-        }
+        console.log(isNowPlaying ? chalk.green('▶ Playing') : chalk.blue('⏸ Paused'))
         this.emit()
         return
       }
@@ -193,17 +221,12 @@ export class MusicController {
       // 同一首歌，检查播放/暂停状态变化
       if (isNowPlaying !== wasPlaying) {
         this.isPlaying = isNowPlaying
-        if (isNowPlaying) {
-          // 恢复播放时更新 elapsedTime
-          this.currentMusic = {
-            ...this.currentMusic!,
-            elapsedTime: compensatedElapsedTime,
-            remainingTime: info.remainingTime
-          }
-          console.log(chalk.green('▶ Playing'))
-        } else {
-          console.log(chalk.blue('⏸ Paused'))
+        this.currentMusic = {
+          ...this.currentMusic!,
+          elapsedTime,
+          remainingTime: info.remainingTime
         }
+        console.log(isNowPlaying ? chalk.green('▶ Playing') : chalk.blue('⏸ Paused'))
         this.emit()
         return
       }
